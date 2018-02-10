@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <program>
+  <model>
+    <bgm maxBgmCount="10">
+      <song>括号君 - The dragonborn comes (《上古卷轴5》插曲).mp3</song>
+    </bgm>
+    <image maxImageCount="20">
+    <!-- <picture></picture> -->
+    </image>
+  </model>
   <view>
+    <frame standardImageLength="700" title="钟表 -- by ReimuWang" padding="0" ifPlayBgm="1" repaintInterval="20" os="ios">
+      <module edgShelter="0"></module>
+      <os>
+        <ios lWidth="0" rWidth="0" dWidth="0" titleWidth="22" sidebar="20" ifSidebarUp="1" />
+        <windows lWidth="10" rWidth="10" dWidth="10" titleWidth="45" sidebar="40" ifSidebarUp="0" />
+      </os>
+    </frame>
   </view>
 </program>

@@ -12,218 +12,268 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javazoom.jl.player.Player;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import utils.SourceDataGetUtil;
-
-import com.clock.constants.Constants;
 import com.clock.dao.DaoView;
-import com.clock.dao.DaoViewPojo;
+import com.clock.view.module.Module;
 import com.clock.view.module.ModuleClock;
 
+import javazoom.jl.player.Player;
+import utils.Dom4jUtil;
+
+/**
+ * 游戏窗体
+ */
+@SuppressWarnings("serial")
 @Component
 public class GameFrame extends Frame {
 
-    @Autowired
-    private DaoView dao;
-
-    private DaoViewPojo data;
-
-    private String title;
+    /**
+     * int, 标准图片边长
+     * 程序核心静态字段
+     * 窗口参数将基于本值计算
+     * 上层图片与下层图片在拼接前也均会转为该值
+     */
+    public static int STANDARD_IMAGE_LENGTH;
 
     /**
-     * int, 窗体宽
+     * String, 标题
      */
-    private int width;
+    private static String TITLE;
 
     /**
-     * int, 窗体高
+     * boolean, true--播放bgm,false--不播放bgm
      */
-    private int height;
-
-    /**
-     * int, 底边栏高度
-     */
-    private int bottomSidebarHeight;
-
-    /**
-     * int, 标题栏宽度
-     */
-    private int titleWidth;
-
-    /**
-     * int, 窗体x坐标
-     */
-    private int frameX;
-
-    /**
-     * int, 窗体y坐标
-     */
-    private int frameY;
-
-    /**
-     * int, 窗体左右下部宽度
-     */
-    private int lrdWidth;
-
-    /**
-     * int, 各组件间留白
-     */
-    private int padding;
+    private static boolean IF_PLAY_BGM;
 
     /**
      * long, 刷新间隔，单位为ms
      */
-    private long repaintInterval;
+    private static int REPAINT_INTERVAL;
 
-    private String imageWindowName;
+    /**
+     * int, frame标题宽度
+     */
+    private static int TITLE_WIDTH;
 
-    private int imageWindowLength;
+    /**
+     * int, 不可使用的最左侧的宽度
+     */
+    private static int L_WIDTH;
 
+    /**
+     * int, 不可使用的最右侧的宽度
+     */
+    private static int R_WIDTH;
+
+    /**
+     * int, 不可使用的最下侧的宽度
+     */
+    private static int D_WIDTH;
+
+    /**
+     * int, 边栏宽度
+     */
+    private static int SIDEBAR;
+
+    /**
+     * boolean, true--边栏在上部,false--边栏在下部
+     */
+    private static boolean IF_SIDEBAR_UP;
+
+    /**
+     * int, 组件间留白
+     */
+    private static int PADDING;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GameFrame.class);
+
+    /**
+     * DaoView, view层数据传输逻辑
+     */
+    @Autowired
+    private DaoView dao;
+
+    /**
+     * ModuleClock, 本frame中的ModuleClock实例
+     */
     private ModuleClock moduleClock;
-
-    void launchFrame() throws URISyntaxException, IOException {
-        this.data = this.dao.initData();
-        super.setSize(this.width, this.height);
-        LOGGER.info("frame width=" + this.width + ",height=" + this.height);
-        super.setTitle(this.title);
-        LOGGER.info("frame title=" + this.title);
-        this.setLocation();
-        this.initModule();
-        super.addWindowListener(
-            new WindowAdapter() {
-                @Override
-                public void windowClosing(WindowEvent e) {
-                    LOGGER.info("program shutdown by window close");
-                    System.exit(0);
-                }
-            }
-        );
-        this.startScheduleRepaint();
-        this.playBgm();
-
-        super.setVisible(true);
-        LOGGER.info("frame launch finish");
-    }
-
-    private void initModule() throws IOException {
-        LOGGER.info("titleWidth=" + this.titleWidth);
-        LOGGER.info("left right down width=" + this.lrdWidth);
-        LOGGER.info("padding=" + this.padding);
-        this.initModuleClock();
-    }
-
-    private void initModuleClock() throws IOException {
-        int oX = this.lrdWidth + this.padding;
-        int oY = this.titleWidth + this.padding;
-        int oHeight = this.height - this.titleWidth - this.lrdWidth
-                      - 2 * this.padding;
-        int oWidth = oHeight;
-        Image window = SourceDataGetUtil
-                       .loadBufferedImage(Constants.IMAGE_WINDOW_PATH + 
-                               this.imageWindowName);
-        this.moduleClock = new ModuleClock(oX, oY, oWidth, oHeight, 
-                           window, this.imageWindowLength, this.padding, this.data);
-        LOGGER.info("init ModuleClock finish:" + this.moduleClock);
-    }
-
-    private void playBgm() {
-        List<File> musicList = this.data.getBgmMusicList();
-        if (null == musicList) {
-            LOGGER.info("not use bgm");
-            return;
-        }
-        List<String> nameList = new ArrayList<String>(musicList.size());
-        for (File f : musicList) nameList.add(f.getName());
-        LOGGER.info("use bgm=" + nameList);
-        new Thread(new BGMplayer(musicList)).start();
-    }
-
-    @Override
-    public void paint(Graphics g) {
-        this.dao.refreshData(this.data);
-        this.moduleClock.draw(g);
-    }
 
     private class BGMplayer implements Runnable {
 
         /**
-         * List<File>, 音乐列表，默认相信该值合法
+         * List<File>, 音乐列表
          */
         private List<File> musicList;
 
+        /**
+         * int, 当前播放的音乐在列表中的index
+         */
+        private int nowIndex;
+
+        /**
+         * 构造函数
+         * @param musicList List<File>, 音乐列表
+         */
         private BGMplayer(List<File> musicList) {
             this.musicList = musicList;
         }
 
+        /**
+         * 线程执行
+         */
         @Override
         public void run() {
             try {
                 while (true) {
-                    File f = this.chooseRandomFile();
+                    File f = null;
                     FileInputStream fis = null;
                     BufferedInputStream bis = null;
                     Player player = null;
-                    if (null == player || player.isComplete()) {
-                        fis = new FileInputStream(f);
-                        bis = new BufferedInputStream(fis);
-                        player = new Player(bis);
-                    }
+                    f = this.musicList.get(this.nowIndex);
+                    fis = new FileInputStream(f);
+                    bis = new BufferedInputStream(fis);
+                    player = new Player(bis);
                     player.play();
                     player.close();
                     bis.close();
                     fis.close();
+                    this.nowIndex++;
+                    if (this.nowIndex >= this.musicList.size())
+                        this.nowIndex = 0;
                 }
             } catch(Exception e) {
-                LOGGER.error("catch error when play bgm", e);
+                LOGGER.error("catch error when play bgm,shutdown", e);
+                System.exit(0);
             }
-        }
-
-        private File chooseRandomFile() {
-            int count = this.musicList.size();
-            int index = new Random().nextInt(count);
-            File f = this.musicList.get(index);
-            LOGGER.debug("random choose bgm=" + f.getName());
-            return f;
         }
     }
 
-    private void startScheduleRepaint() {
-        Runnable r = new Runnable() {
-            @Override
-            public void run() {
-                GameFrame.this.repaint();
+    static {
+        try {
+            // 获得os类型
+            String os = Dom4jUtil.getAttribute("view", "frame", "os");
+            // STANDARD_IMAGE_LENGTH
+            String standardImageLengthStr = Dom4jUtil.getAttribute("view", "frame", "standardImageLength");
+            int standardImageLength = Integer.parseInt(standardImageLengthStr);
+            if (standardImageLength > 0)
+                GameFrame.STANDARD_IMAGE_LENGTH = standardImageLength;
+            else {
+                LOGGER.error("view.frame.standardImageLength illegal,shutdown");
+                System.exit(0);
             }
-        };
-        ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
-        ses.scheduleAtFixedRate(r, 0, this.repaintInterval, TimeUnit.MILLISECONDS);
-        LOGGER.info("schedule repaint pool create finish,interval=" + this.repaintInterval);
+            // TITLE
+            GameFrame.TITLE = Dom4jUtil.getAttribute("view", "frame", "title");
+            // IF_PLAY_BGM
+            String ifBgm = Dom4jUtil.getAttribute("view", "frame", "ifPlayBgm");
+            if ("1".equals(ifBgm))
+                GameFrame.IF_PLAY_BGM = true;
+            else if (!"0".equals(ifBgm)) {
+                LOGGER.error("view.frame.ifPlayBgm illegal,shutdown");
+                System.exit(0);
+            }
+            // REPAINT_INTERVAL
+            String repaintIntervalStr = Dom4jUtil.getAttribute("view", "frame", "repaintInterval");
+            int repaintInterval = Integer.parseInt(repaintIntervalStr);
+            if (repaintInterval > 0)
+                GameFrame.REPAINT_INTERVAL = repaintInterval;
+            else {
+                LOGGER.error("view.frame.repaintInterval illegal,shutdown");
+                System.exit(0);
+            }
+            // TITLE_WIDTH
+            String titleWidthStr = Dom4jUtil.getAttribute("view", "frame", "os", os, "titleWidth");
+            int titleWidth = Integer.parseInt(titleWidthStr);
+            if (titleWidth >= 0)
+                GameFrame.TITLE_WIDTH = titleWidth;
+            else {
+                LOGGER.error("view.frame.os." + os + ".titleWidth illegal,shutdown");
+                System.exit(0);
+            }
+            // L_WIDTH
+            String lWidthStr = Dom4jUtil.getAttribute("view", "frame", "os", os, "lWidth");
+            int lWidth = Integer.parseInt(lWidthStr);
+            if (lWidth >= 0)
+                GameFrame.L_WIDTH = lWidth;
+            else {
+                LOGGER.error("view.frame.os." + os + ".lWidth illegal,shutdown");
+                System.exit(0);
+            }
+            // R_WIDTH
+            String rWidthStr = Dom4jUtil.getAttribute("view", "frame", "os", os, "rWidth");
+            int rWidth = Integer.parseInt(rWidthStr);
+            if (rWidth >= 0)
+                GameFrame.R_WIDTH = rWidth;
+            else {
+                LOGGER.error("view.frame.os." + os + ".rWidth illegal,shutdown");
+                System.exit(0);
+            }
+            // D_WIDTH
+            String dWidthStr = Dom4jUtil.getAttribute("view", "frame", "os", os, "dWidth");
+            int dWidth = Integer.parseInt(dWidthStr);
+            if (dWidth >= 0)
+                GameFrame.D_WIDTH = dWidth;
+            else {
+                LOGGER.error("view.frame.os." + os + ".dWidth illegal,shutdown");
+                System.exit(0);
+            }
+            // SIDEBAR
+            String sidebarStr = Dom4jUtil.getAttribute("view", "frame", "os", os, "sidebar");
+            int sidebar = Integer.parseInt(sidebarStr);
+            if (sidebar >= 0)
+                GameFrame.SIDEBAR = sidebar;
+            else {
+                LOGGER.error("view.frame.os." + os + ".sidebar illegal,shutdown");
+                System.exit(0);
+            }
+            // IF_SIDEBAR_UP
+            String ifSidebarUp = Dom4jUtil.getAttribute("view", "frame", "os", os, "ifSidebarUp");
+            if ("1".equals(ifSidebarUp))
+                GameFrame.IF_SIDEBAR_UP = true;
+            else if (!"0".equals(ifSidebarUp)) {
+                LOGGER.error("view.frame.os." + os + ".ifSidebarUp illegal,shutdown");
+                System.exit(0);
+            }
+            // PADDING
+            String paddingStr = Dom4jUtil.getAttribute("view", "frame", "padding");
+            int padding = Integer.parseInt(paddingStr);
+            if (padding >= 0)
+                GameFrame.PADDING = padding;
+            else {
+                LOGGER.error("view.frame.os.padding illegal,shutdown");
+                System.exit(0);
+            }
+        } catch (Exception e) {
+            LOGGER.error("fail to init GameFrame static", e);
+            System.exit(0);
+        }
     }
 
-    private void setLocation() {
-        Dimension  d = Toolkit.getDefaultToolkit().getScreenSize();
-        this.frameX = (d.width - this.width) / 2;
-        this.frameY = (d.height - this.bottomSidebarHeight - this.height) / 2;
-        super.setLocation(this.frameX, this.frameY);
-        LOGGER.info("frame x=" + this.frameX + ",y=" + this.frameY);
+    /**
+     * 绘制组件
+     */
+    @Override
+    public void paint(Graphics g) {
+        try {
+            this.dao.refreshData();
+            this.moduleClock.draw(g);
+        } catch (Exception e) {
+            LOGGER.error("fail to paint,shutdown", e);
+            System.exit(0);
+        }
     }
 
     /**
      * 通过双缓冲解决闪烁问题
-     * @param g Graphics
+     * @param g Graphics, 画笔
      */
     @Override
     public void update(Graphics g) {
@@ -234,62 +284,70 @@ public class GameFrame extends Frame {
         g.drawImage(bImage, 0, 0, this);
     }
 
-    private final static Logger LOGGER = LoggerFactory
-            .getLogger(GameFrame.class);
-
-    GameFrame() {
-        super();
+    /**
+     * 加载窗体，唯一启动入口
+     * @throws URISyntaxException
+     * @throws IOException
+     */
+    void launchFrame() throws URISyntaxException, IOException {
+        // 初始化数据
+        this.dao.initData();
+        // 计算窗体宽高，计算时给了一个微调的值
+        // 该值应随实际情况调整
+        int adjustment = 7;
+        int fWidth = GameFrame.STANDARD_IMAGE_LENGTH + 2 * (Module.EDGING_LENGTH + GameFrame.PADDING) + GameFrame.L_WIDTH + GameFrame.R_WIDTH - adjustment;
+        int fHeight =GameFrame.STANDARD_IMAGE_LENGTH + 2 * (Module.EDGING_LENGTH + GameFrame.PADDING) + GameFrame.D_WIDTH + GameFrame.TITLE_WIDTH - adjustment;
+        super.setSize(fWidth, fHeight);
+        // 设置窗体标题
+        super.setTitle(GameFrame.TITLE);
+        // 设置窗体位置居中
+        Dimension  d = Toolkit.getDefaultToolkit().getScreenSize();
+        int frameX = (d.width - fWidth) / 2;
+        int frameY = (d.height - GameFrame.SIDEBAR - fHeight) / 2;
+        if (GameFrame.IF_SIDEBAR_UP)
+            frameY += GameFrame.SIDEBAR;
+        super.setLocation(frameX, frameY);
+        // 初始化ModuleClock
+        int mcOX = GameFrame.L_WIDTH + GameFrame.PADDING;
+        int mcOY = GameFrame.TITLE_WIDTH + GameFrame.PADDING;
+        int mcW = GameFrame.STANDARD_IMAGE_LENGTH + Module.EDGING_LENGTH;
+        this.moduleClock = new ModuleClock(mcOX, mcOY, mcW, mcW, this.dao.getData());
+        // 设置关闭窗体时的行为
+        super.addWindowListener(
+            new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    LOGGER.info("program shutdown by window close");
+                    System.exit(0);
+                }
+            }
+        );
+        // 启动重绘定时任务
+        this.startScheduleRepaint();
+        // 播放音乐
+        if (GameFrame.IF_PLAY_BGM) {
+            List<File> bgmMusicList = this.dao.getData().getBgmList();
+            if (null == bgmMusicList || bgmMusicList.size() == 0) {
+                LOGGER.error("need to paly bgm,but bgm list is null or empty,shutdown");
+                System.exit(0);
+            }
+            new Thread(new BGMplayer(bgmMusicList)).start();
+        }
+        // 设置窗体可见
+        super.setVisible(true);
     }
 
-    private static final long serialVersionUID = 1L;
-
-    @Value("#{config.view_frame_title}")
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    @Value("#{config.view_frame_width}")
-    public void setWidth(int width) {
-        this.width = width;
-    }
-
-    @Value("#{config.view_frame_height}")
-    public void setHeight(int height) {
-        this.height = height;
-    }
-
-    @Value("#{config.view_base_bottomSidebarHeight}")
-    public void setBottomSidebarHeight(int bottomSidebarHeight) {
-        this.bottomSidebarHeight = bottomSidebarHeight;
-    }
-
-    @Value("#{config.view_frame_titleWidth}")
-    public void setTitleWidth(int titleWidth) {
-        this.titleWidth = titleWidth;
-    }
-
-    @Value("#{config.view_frame_LRDWidth}")
-    public void setLrdWidth(int lrdWidth) {
-        this.lrdWidth = lrdWidth;
-    }
-
-    @Value("#{config.view_frame_padding}")
-    public void setPadding(int padding) {
-        this.padding = padding;
-    }
-
-    @Value("#{config.view_base_repaintInterval}")
-    public void setRepaintInterval(long repaintInterval) {
-        this.repaintInterval = repaintInterval;
-    }
-
-    @Value("#{config.view_base_imageWindowName}")
-    public void setImageWindowName(String imageWindowName) {
-        this.imageWindowName = imageWindowName;
-    }
-
-    @Value("#{config.view_base_imageWindowLength}")
-    public void setImageWindowLength(int imageWindowLength) {
-        this.imageWindowLength = imageWindowLength;
+    /**
+     * 启动重绘定时任务
+     */
+    private void startScheduleRepaint() {
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                GameFrame.this.repaint();
+            }
+        };
+        ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
+        ses.scheduleAtFixedRate(r, 0, GameFrame.REPAINT_INTERVAL, TimeUnit.MILLISECONDS);
     }
 }

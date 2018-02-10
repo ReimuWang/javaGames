@@ -1,11 +1,38 @@
 package com.clock.view.module;
 
 import java.awt.Graphics;
-import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.clock.dao.DaoViewPojo;
 
+import utils.Dom4jUtil;
+import utils.SourceDataGetUtil;
+
+/**
+ * 抽象模块：包含模块的基本信息
+ */
 public abstract class Module {
+
+    /**
+     * BufferedImage, 边框图片
+     */
+    private static BufferedImage IMAGE_EDGING;
+
+    /**
+     * boolean, true--开启窗口内部区域的遮蔽效果,false--关闭窗口内部区域的遮蔽效果
+     */
+    private static boolean EDG_SHELTER;
+
+    /**
+     * int, 边框宽度，单位为px
+     */
+    public static final int EDGING_LENGTH = 7;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Module.class);
 
     /**
      * int, 从外部看，模块的横坐标
@@ -48,70 +75,100 @@ public abstract class Module {
     int iHeight;
 
     /**
-     * Image, 边框图片
+     * int, 留白
      */
-    Image window;
-
-    /**
-     * int, 边框图片宽度
-     */
-    int windowLength;
-
     int padding;
 
+    /**
+     * DaoViewPojo, 数据信息
+     */
     DaoViewPojo data;
 
     /**
-     * 
-     * @param oX
-     * @param oY
-     * @param oWidth
-     * @param oHeight
-     * @param window Image, 若为null则表示本模块无边框
-     * @param windowLength int, 若window为null则本字段需填0
-     * @param padding int, 留白
-     * @param data DaoViewPojo
+     * BufferedImage, 边框图片
      */
-    Module(int oX, int oY, int oWidth, int oHeight, 
-           Image window, int windowLength, int padding, DaoViewPojo data) {
+    private BufferedImage imageEdging;
+
+    /**
+     * int, 边框图片宽度，单位为px
+     */
+    private int edgingLength;
+
+    static {
+        try {
+            // IMAGE_EDGING
+            String edgingPath = "material/images/windows/0.png";
+            Module.IMAGE_EDGING = SourceDataGetUtil.loadBufferedImage(edgingPath);
+            // EDG_SHELTER
+            String edgShelter = Dom4jUtil.getAttribute("view", "frame", "module", "edgShelter");
+            if ("1".equals(edgShelter))
+                Module.EDG_SHELTER = true;
+            else if (!"0".equals(edgShelter)) {
+                LOGGER.error("view.frame.module.edgShelter illegal,shutdown");
+                System.exit(0);
+            }
+        } catch (Exception e) {
+            LOGGER.error("fail to init Module static", e);
+            System.exit(0);
+        }
+    }
+
+    /**
+     * 构造函数
+     * @param oX int, 从外部看，模块的横坐标
+     * @param oY int, 从外部看，模块的纵坐标
+     * @param oWidth int, 从外部看，模块的宽
+     * @param oHeight int, 从外部看，模块的高
+     * @param padding int, 留白
+     * @param data DaoViewPojo, 数据信息
+     */
+    Module(int oX, int oY, int oWidth, int oHeight, int padding, DaoViewPojo data) {
         this.oX = oX;
         this.oY = oY;
         this.oWidth = oWidth;
         this.oHeight = oHeight;
         this.padding = padding;
         this.data = data;
-        if (null != window) {
-            this.window = window;
-            this.windowLength = windowLength;
-        }
-        this.iX = this.oX + this.windowLength + this.padding;
-        this.iY = this.oY + this.windowLength + this.padding;
-        this.iWidth = this.oWidth - 2 * (this.windowLength + this.padding);
-        this.iHeight = this.oHeight - 2 * (this.windowLength + this.padding);
+        this.imageEdging = Module.IMAGE_EDGING;
+        this.edgingLength = Module.EDGING_LENGTH;
+        this.iX = this.oX + this.edgingLength + this.padding;
+        this.iY = this.oY + this.edgingLength + this.padding;
+        this.iWidth = this.oWidth - 2 * (this.edgingLength + this.padding);
+        this.iHeight = this.oHeight - 2 * (this.edgingLength + this.padding);
     }
 
+    /**
+     * 绘制边框
+     * @param g Graphics, 画笔
+     */
     void drawWindow(Graphics g) {
-        int windowWidth = this.window.getWidth(null);
-        int windowHeight = this.window.getHeight(null);
+        int windowWidth = this.imageEdging.getWidth();
+        int windowHeight = this.imageEdging.getHeight();
         // 左上
-        g.drawImage(this.window, this.oX, this.oY, this.oX + this.windowLength, this.oY + this.windowLength, 0, 0, this.windowLength, this.windowLength, null);
+        g.drawImage(this.imageEdging, this.oX, this.oY, this.oX + this.edgingLength, this.oY + this.edgingLength, 0, 0, this.edgingLength, this.edgingLength, null);
         // 中上
-        g.drawImage(this.window, this.oX + this.windowLength, this.oY, this.oX + this.oWidth - this.windowLength, this.oY + this.windowLength, this.windowLength, 0, windowWidth - this.windowLength, this.windowLength, null);
+        g.drawImage(this.imageEdging, this.oX + this.edgingLength, this.oY, this.oX + this.oWidth - this.edgingLength, this.oY + this.edgingLength, this.edgingLength, 0, windowWidth - this.edgingLength, this.edgingLength, null);
         // 右上
-        g.drawImage(this.window, this.oX + this.oWidth - this.windowLength, this.oY, this.oX + this.oWidth, this.oY + this.windowLength, windowWidth - this.windowLength, 0, windowWidth, this.windowLength, null);
+        g.drawImage(this.imageEdging, this.oX + this.oWidth - this.edgingLength, this.oY, this.oX + this.oWidth, this.oY + this.edgingLength, windowWidth - this.edgingLength, 0, windowWidth, this.edgingLength, null);
         // 左中
-        g.drawImage(this.window, this.oX, this.oY + this.windowLength, this.oX + this.windowLength, this.oY + this.oHeight - this.windowLength, 0, this.windowLength, this.windowLength, windowHeight - this.windowLength, null);
+        g.drawImage(this.imageEdging, this.oX, this.oY + this.edgingLength, this.oX + this.edgingLength, this.oY + this.oHeight - this.edgingLength, 0, this.edgingLength, this.edgingLength, windowHeight - this.edgingLength, null);
         // 中
-//        g.drawImage(this.window, this.oX + this.windowLength, this.oY + this.windowLength, this.oX + this.oWidth - this.windowLength, this.oY + this.oHeight - this.windowLength, this.windowLength, this.windowLength, windowWidth - this.windowLength, windowHeight - this.windowLength, null);
+        if (Module.EDG_SHELTER)
+            g.drawImage(this.imageEdging, this.oX + this.edgingLength, this.oY + this.edgingLength, this.oX + this.oWidth - this.edgingLength, this.oY + this.oHeight - this.edgingLength, this.edgingLength, this.edgingLength, windowWidth - this.edgingLength, windowHeight - this.edgingLength, null);
         // 右中
-        g.drawImage(this.window, this.oX + this.oWidth - this.windowLength, this.oY + this.windowLength, this.oX + this.oWidth, this.oY + this.oHeight - this.windowLength, windowWidth - this.windowLength, this.windowLength, windowWidth, windowHeight - this.windowLength, null);
+        g.drawImage(this.imageEdging, this.oX + this.oWidth - this.edgingLength, this.oY + this.edgingLength, this.oX + this.oWidth, this.oY + this.oHeight - this.edgingLength, windowWidth - this.edgingLength, this.edgingLength, windowWidth, windowHeight - this.edgingLength, null);
         // 左下
-        g.drawImage(this.window, this.oX, this.oY + this.oHeight - this.windowLength, this.oX + this.windowLength, this.oY + this.oHeight, 0, windowHeight - this.windowLength, this.windowLength, windowHeight, null);
+        g.drawImage(this.imageEdging, this.oX, this.oY + this.oHeight - this.edgingLength, this.oX + this.edgingLength, this.oY + this.oHeight, 0, windowHeight - this.edgingLength, this.edgingLength, windowHeight, null);
         // 中下
-        g.drawImage(this.window, this.oX + this.windowLength, this.oY + this.oHeight - this.windowLength, this.oX + this.oWidth - this.windowLength, this.oY + this.oHeight, this.windowLength, windowHeight - this.windowLength, windowWidth - this.windowLength, windowHeight, null);
+        g.drawImage(this.imageEdging, this.oX + this.edgingLength, this.oY + this.oHeight - this.edgingLength, this.oX + this.oWidth - this.edgingLength, this.oY + this.oHeight, this.edgingLength, windowHeight - this.edgingLength, windowWidth - this.edgingLength, windowHeight, null);
         // 右下
-        g.drawImage(this.window, this.oX + this.oWidth - this.windowLength, this.oY + this.oHeight - this.windowLength, this.oX + this.oWidth, this.oY + this.oHeight, windowWidth - this.windowLength, windowHeight - this.windowLength, windowWidth, windowHeight, null);
+        g.drawImage(this.imageEdging, this.oX + this.oWidth - this.edgingLength, this.oY + this.oHeight - this.edgingLength, this.oX + this.oWidth, this.oY + this.oHeight, windowWidth - this.edgingLength, windowHeight - this.edgingLength, windowWidth, windowHeight, null);
     }
 
-    abstract void draw(Graphics g);
+    /**
+     * 绘制模块
+     * @param g Graphics, 画笔
+     * @throws IOException 
+     */
+    abstract void draw(Graphics g) throws IOException;
 }
