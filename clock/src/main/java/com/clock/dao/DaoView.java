@@ -47,6 +47,7 @@ public class DaoView {
             LOGGER.error("image list is null or empty,shutdown");
             System.exit(0);
         }
+        if (data.getImagePathList().size() == 1) data.setImage1Index(0);
         this.data = data;
     }
 

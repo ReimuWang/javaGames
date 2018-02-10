@@ -3,15 +3,24 @@
 <program>
   <model>
     <bgm maxBgmCount="10">
-      <song>括号君 - The dragonborn comes (《上古卷轴5》插曲).mp3</song>
+      <!-- <song></song> -->
     </bgm>
     <image maxImageCount="20">
-    <!-- <picture></picture> -->
+      <picture>l_灵梦.jpg</picture>
+      <picture>r_早苗.jpg</picture>
+      <picture>l_芙兰.jpg</picture>
+      <picture>r_蕾米.jpg</picture>
+      <picture>l_魔理沙.jpg</picture>
+      <picture>r_爱丽丝.jpg</picture>
+      <picture>恋.jpg</picture>
+      <picture>觉.jpg</picture>
     </image>
   </model>
   <view>
-    <frame standardImageLength="700" title="钟表 -- by ReimuWang" padding="0" ifPlayBgm="1" repaintInterval="20" os="ios">
-      <module edgShelter="0"></module>
+    <frame standardImageLength="700" title="钟表 -- by ReimuWang" padding="0" ifPlayBgm="1" repaintInterval="20" os="windows">
+      <module edgShelter="0">
+        <moduleClock hourHandWidth="0.03" hourHandLength="0.22" minuteHandWidth="0.015" minuteHandLength="0.42" smallR="0.025" />
+      </module>
       <os>
         <ios lWidth="0" rWidth="0" dWidth="0" titleWidth="22" sidebar="20" ifSidebarUp="1" />
         <windows lWidth="10" rWidth="10" dWidth="10" titleWidth="45" sidebar="40" ifSidebarUp="0" />

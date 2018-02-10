@@ -14,12 +14,4 @@
                                        ,com.clock.view
                                        ,com.clock.dao" />
 
-  <bean id="config" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
-    <property name="locations">  
-      <array>
-        <value>classpath:config.properties</value>
-      </array>
-    </property>
-  </bean>
-
 </beans>

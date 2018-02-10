@@ -8,9 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.clock.dao.DaoViewPojo;
-
-import utils.Dom4jUtil;
-import utils.SourceDataGetUtil;
+import com.utils.Dom4jUtil;
+import com.utils.SourceDataGetUtil;
 
 /**
  * 抽象模块：包含模块的基本信息

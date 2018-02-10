@@ -12,8 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import utils.Dom4jUtil;
-import utils.SourceDataGetUtil;
+import com.utils.Dom4jUtil;
+import com.utils.SourceDataGetUtil;
 
 /**
  * 包含所有model逻辑代码

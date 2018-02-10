@@ -1,24 +1,61 @@
 package com.clock.view.module;
 
+import java.awt.BasicStroke;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.clock.dao.DaoViewPojo;
 import com.clock.view.GameFrame;
-
-import utils.ImageUtil;
-import utils.SourceDataGetUtil;
+import com.utils.Dom4jUtil;
+import com.utils.ImageUtil;
+import com.utils.SourceDataGetUtil;
 
 /**
  * 模块：时钟
  */
 public class ModuleClock extends Module {
+
+    /**
+     * double, 时针宽度
+     * 实际是时针宽度与标准图片尺寸的比例
+     */
+    private static double HOUR_HAND_WIDTH;
+
+    /**
+     * double, 时针长度
+     * 实际是时针长度与标准图片尺寸的比例
+     */
+    private static double HOUR_HAND_LENGTH;
+
+    /**
+     * double, 分针宽度
+     * 实际是分针宽度与标准图片尺寸的比例
+     */
+    private static double MINUTE_HAND_WIDTH;
+
+    /**
+     * double, 分针长度
+     * 实际是分针长度与标准图片尺寸的比例
+     */
+    private static double MINUTE_HAND_LENGTH;
+
+    /**
+     * double, 中心圆半径
+     * 实际是中心圆半径与标准图片尺寸的比例
+     */
+    private static double SMALL_R;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModuleClock.class);
 
     /**
      * 表示一个点
@@ -43,6 +80,59 @@ public class ModuleClock extends Module {
         public Point(double x, double y) {
             this.x = x;
             this.y = y;
+        }
+    }
+
+    static {
+        try {
+            // HOUR_HAND_WIDTH
+            String hourHandWidthStr = Dom4jUtil.getAttribute("view", "frame", "module", "moduleClock", "hourHandWidth");
+            double hourHandWidth = Double.parseDouble(hourHandWidthStr);
+            if (hourHandWidth > 0)
+                ModuleClock.HOUR_HAND_WIDTH = hourHandWidth;
+            else {
+                LOGGER.error("view.frame.module.moduleClock.hourHandWidth illegal,shutdown");
+                System.exit(0);
+            }
+            // HOUR_HAND_LENGTH
+            String hourHandLengthStr = Dom4jUtil.getAttribute("view", "frame", "module", "moduleClock", "hourHandLength");
+            double hourHandLength = Double.parseDouble(hourHandLengthStr);
+            if (hourHandLength > 0)
+                ModuleClock.HOUR_HAND_LENGTH = hourHandLength;
+            else {
+                LOGGER.error("view.frame.module.moduleClock.hourHandLength illegal,shutdown");
+                System.exit(0);
+            }
+            // MINUTE_HAND_WIDTH
+            String minuteHandWidthStr = Dom4jUtil.getAttribute("view", "frame", "module", "moduleClock", "minuteHandWidth");
+            double minuteHandWidth = Double.parseDouble(minuteHandWidthStr);
+            if (minuteHandWidth > 0)
+                ModuleClock.MINUTE_HAND_WIDTH = minuteHandWidth;
+            else {
+                LOGGER.error("view.frame.module.moduleClock.minuteHandWidth illegal,shutdown");
+                System.exit(0);
+            }
+            // MINUTE_HAND_LENGTH
+            String minuteHandLengthStr = Dom4jUtil.getAttribute("view", "frame", "module", "moduleClock", "minuteHandLength");
+            double minuteHandLength = Double.parseDouble(minuteHandLengthStr);
+            if (minuteHandLength > 0)
+                ModuleClock.MINUTE_HAND_LENGTH = minuteHandLength;
+            else {
+                LOGGER.error("view.frame.module.moduleClock.minuteHandLength illegal,shutdown");
+                System.exit(0);
+            }
+            // SMALL_R
+            String smallRStr = Dom4jUtil.getAttribute("view", "frame", "module", "moduleClock", "smallR");
+            double smallR = Double.parseDouble(smallRStr);
+            if (smallR > 0)
+                ModuleClock.SMALL_R = smallR;
+            else {
+                LOGGER.error("view.frame.module.moduleClock.smallR illegal,shutdown");
+                System.exit(0);
+            }
+        } catch (Exception e) {
+            LOGGER.error("fail to init ModuleClock static", e);
+            System.exit(0);
         }
     }
 
@@ -78,12 +168,12 @@ public class ModuleClock extends Module {
         Graphics2D g2d = (Graphics2D)g;
         // 去锯齿
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        // 定圆心及半径
+        // 圆心
         int xCenter = this.iX + this.iWidth / 2;
         int yCenter = this.iY + this.iHeight / 2;
-        int r = this.iWidth / 2;
-        // 记录初始旋转信息，便于以后复原
+        // 记录初始信息，用后需恢复
         AffineTransform oldAT = g2d.getTransform();
+        Stroke oldS = g2d.getStroke();
         // 时分秒信息
         Calendar calendar = this.data.getCalendar();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
@@ -97,13 +187,20 @@ public class ModuleClock extends Module {
         // 绘时针
         double hAngle = 2 * Math.PI * (hour - hexDH + minute / hexHMS + second / (hexHMS * hexHMS)) / hexDH;
         g2d.rotate(hAngle, xCenter, yCenter);
-        g.drawLine(xCenter, yCenter, xCenter, (int)(yCenter - r * 0.45));
+        g2d.setStroke(new BasicStroke((float)(GameFrame.STANDARD_IMAGE_LENGTH * ModuleClock.HOUR_HAND_WIDTH)));
+        g.drawLine(xCenter, yCenter, xCenter, (int)(yCenter - GameFrame.STANDARD_IMAGE_LENGTH * ModuleClock.HOUR_HAND_LENGTH));
         g2d.setTransform(oldAT);
        // 绘分针
        double mAngle = 2 * Math.PI * (minute + second / hexHMS) / hexHMS;
        g2d.rotate(mAngle, xCenter, yCenter);
-       g.drawLine(xCenter, yCenter, xCenter, (int)(yCenter - r * 0.7));    // TODO
+       g2d.setStroke(new BasicStroke((float)(GameFrame.STANDARD_IMAGE_LENGTH * ModuleClock.MINUTE_HAND_WIDTH)));
+       g.drawLine(xCenter, yCenter, xCenter, (int)(yCenter - GameFrame.STANDARD_IMAGE_LENGTH * ModuleClock.MINUTE_HAND_LENGTH));
        g2d.setTransform(oldAT);
+       // 复原画笔
+       g2d.setStroke(oldS);
+       // 画中心的圆
+       int smallR = (int)(GameFrame.STANDARD_IMAGE_LENGTH * ModuleClock.SMALL_R);
+       g.fillOval(xCenter - smallR, yCenter - smallR, 2 * smallR, 2 * smallR);
     }
 
     /**
